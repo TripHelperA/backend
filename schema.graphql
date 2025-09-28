@@ -1,0 +1,48 @@
+type User {
+  userId: ID!
+  firstName: String!
+  familyName: String!
+  routeIds: [ID!]!
+}
+
+input UserInput {
+  firstName: String!
+  familyName: String!
+}
+
+type Route {
+  routeId: ID!
+  userId: ID!
+  title: String!
+  description: String
+  sharable: Boolean!
+  locations: [String!]!
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+input RouteInput {
+  title: String!
+  description: String
+  sharable: Boolean!
+  locations: [String!]!
+}
+
+type Query {
+  getUser(userId: ID!): User
+  getRoute(routeId: ID!): Route
+  getUserRoutes(userId: ID!): [Route]
+}
+
+type Mutation {
+  createUser(input: UserInput!): User
+  updateUser(userId: ID!, input: UserInput!): User
+  createRoute(input: RouteInput!): Route
+  updateRoute(routeId: ID!, input: RouteInput!): Route
+  deleteRoute(routeId: ID!): Route
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+}
