@@ -72,7 +72,7 @@ export class RouteAppStack extends cdk.Stack {
 
     // sync cognito w dynamodb
     const postConfirmationFn = new lambda.Function(this, 'PostConfirmationFn', {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
       code: lambda.Code.fromInline(`
         const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
