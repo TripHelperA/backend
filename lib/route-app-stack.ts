@@ -91,8 +91,7 @@ export class RouteAppStack extends cdk.Stack {
 
         exports.handler = async (event) => {
           console.log("PostConfirmation event:", JSON.stringify(event));
-          
-          const userId = event.userName; // Cognito "sub"
+          const userId = event.request.userAttributes.sub; // Cognito "sub"
           const email = event.request.userAttributes.email;
           const firstName = event.request.userAttributes.given_name || "";
           const familyName = event.request.userAttributes.family_name || "";
@@ -351,7 +350,7 @@ export class RouteAppStack extends cdk.Stack {
       environment: {
         USER_TABLE: usersTable.tableName,
         ROUTES_TABLE: routesTable.tableName,
-        GOOGLE_API_KEY: "<your-google-api-key>", // use Secrets Manager for production
+        GOOGLE_API_KEY: "<Your-api-key-here>", // use Secrets Manager for production
       },
     });
 
