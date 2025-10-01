@@ -10,6 +10,11 @@ input UserInput {
   familyName: String!
 }
 
+input mainLogicUserInput {
+  startingPlace: String!
+  endPlace: String!
+  userInput: String!
+}
 type Route {
   routeId: ID!
   userId: ID!
@@ -40,6 +45,7 @@ type Mutation {
   createRoute(input: RouteInput!): Route
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route
+  mainLogicRequest(input: mainLogicUserInput!): [String!]!
 }
 
 schema {
