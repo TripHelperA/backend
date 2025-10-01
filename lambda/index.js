@@ -59,7 +59,6 @@ exports.handler = async function(event) {
     
     const place = responseData.results?.[0] || { name: "Unknown Place" }; 
 
-    // ❌ REPLACED UUID GENERATION WITH HARDCODED STRING
     const routeId = "TEST-BUILD-ROUTE-ID-12345"; 
 
     const newRoute = {
