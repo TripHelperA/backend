@@ -10,7 +10,7 @@ type Route {
   userId: ID!
   title: String!
   description: String
-  sharable: Boolean!
+  sharable: String!
   locations: [Location!]!
   createdAt: AWSDateTime
   updatedAt: AWSDateTime
@@ -58,7 +58,7 @@ input mainLogicUserInput {
 input RouteInput {
   title: String!
   description: String
-  sharable: Boolean!
+  sharable: String!
   locations: [LocationInput!]!
 }
 
