@@ -83,6 +83,13 @@ export class RouteAppStack extends cdk.Stack {
       sortKey: { name: "routeId", type: dynamodb.AttributeType.STRING },
     });
 
+    routesTable.addGlobalSecondaryIndex({
+      indexName: "SharableIndex",
+      partitionKey: { name: "sharable", type: dynamodb.AttributeType.STRING }, // This WIlll only be "true" or "false"
+      sortKey: { name: "createdAt", type: dynamodb.AttributeType.STRING }, // optional, for sorting
+      projectionType: dynamodb.ProjectionType.ALL, // returns all attributes
+    });
+
     // sync cognito w dynamodb
     const postConfirmationFn = new lambda.Function(this, "PostConfirmationFn", {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -233,6 +240,7 @@ export class RouteAppStack extends cdk.Stack {
     });
 
     // mutations
+    // CLient should pass true or false into sharable
     routesDataSource.createResolver("CreateRouteResolver", {
       typeName: "Mutation",
       fieldName: "createRoute",
@@ -248,7 +256,7 @@ export class RouteAppStack extends cdk.Stack {
             "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "title": $util.dynamodb.toDynamoDBJson($ctx.args.input.title),
             "description": $util.dynamodb.toDynamoDBJson($ctx.args.input.description),
-            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable),
+            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable ? "true" : "false") 
             "locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
             "createdAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
           }
