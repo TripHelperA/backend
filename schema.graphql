@@ -67,9 +67,15 @@ type Mutation {
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route
   mainLogicRequest(input: mainLogicUserInput!): String!
+  generateSignedUrl(type: String!, id: ID!, mode: String!): SignedUrl!
 }
 
 schema {
   query: Query
   mutation: Mutation
+}
+
+type SignedUrl {
+  url: String!
+  key: String!
 }

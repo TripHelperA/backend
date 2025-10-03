@@ -3,6 +3,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -371,10 +372,63 @@ export class RouteAppStack extends cdk.Stack {
       },
     });
 
-    // Grant DynamoDB permissions
+    // s3 bucket for images
+    const imagesBucket = new s3.Bucket(this, "RouteAppImagesBucket", {
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
+    // allow authenticated users to upload/get images
+    authenticatedRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:PutObject", "s3:GetObject"],
+        resources: [
+          imagesBucket.arnForObjects("users/${cognito-identity.amazonaws.com:sub}/*"),
+          imagesBucket.arnForObjects("routes/*"),
+        ],
+      })
+    );
+
+    // Grant Lambda permissions
     usersTable.grantReadWriteData(mainLogicLambda);
     routesTable.grantReadWriteData(mainLogicLambda);
 
+    const signedUrlLambda = new lambda.Function(this, "SignedUrlLambda", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "signedUrl.handler",
+      code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
+      environment: {
+        IMAGES_BUCKET: imagesBucket.bucketName,
+      },
+    });
+
+    // allow Lambda to put objects into S3
+    imagesBucket.grantReadWrite(signedUrlLambda);
+
+    const signedUrlDataSource = api.addLambdaDataSource(
+      "SignedUrlDataSource",
+      signedUrlLambda
+    );
+
+    signedUrlDataSource.createResolver("GenerateSignedUrlResolver", {
+      typeName: "Mutation",
+      fieldName: "generateSignedUrl",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+        {
+          "version": "2018-05-29",
+          "operation": "Invoke",
+          "payload": {
+            "arguments": $util.toJson($ctx.arguments),
+            "identity": $util.toJson($ctx.identity)
+          }
+        }
+      `),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+        $util.toJson($ctx.result)
+      `),
+    });
     // AppSync data source & resolver
     const mainLambdaDataSource = api.addLambdaDataSource(
       "MainLambdaDataSource",
