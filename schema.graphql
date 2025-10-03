@@ -43,6 +43,11 @@ input UserInput {
   familyName: String!
 }
 
+input LocationInput {
+  placeId: String!
+  isOnTheRoute: Boolean!
+}
+
 input mainLogicUserInput {
   startingPlace: String!
   title: String!
@@ -54,7 +59,7 @@ input RouteInput {
   title: String!
   description: String
   sharable: Boolean!
-  locations: [Location!]!
+  locations: [LocationInput!]!
 }
 
 type Query {
