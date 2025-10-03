@@ -4,15 +4,21 @@ type User {
   familyName: String!
   routeIds: [ID]
 }
+
 type Route {
   routeId: ID!
   userId: ID!
   title: String!
   description: String
   sharable: Boolean!
-  locations: [String!]!
+  locations: [Location!]!
   createdAt: AWSDateTime
   updatedAt: AWSDateTime
+}
+
+type Location {
+  placeId: String!
+  isOnTheRoute: Boolean!
 }
 type Review {
   authorName: String!
@@ -22,7 +28,6 @@ type Review {
   time: AWSDateTime
   relativeTime: String
 }
-
 type PlaceInfo {
   title: String!
   latitude: Float!
