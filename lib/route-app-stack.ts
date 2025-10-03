@@ -385,7 +385,9 @@ export class RouteAppStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ["s3:PutObject", "s3:GetObject"],
         resources: [
-          imagesBucket.arnForObjects("users/${cognito-identity.amazonaws.com:sub}/*"),
+          imagesBucket.arnForObjects(
+            "users/${cognito-identity.amazonaws.com:sub}/*"
+          ),
           imagesBucket.arnForObjects("routes/*"),
         ],
       })
@@ -395,12 +397,17 @@ export class RouteAppStack extends cdk.Stack {
     usersTable.grantReadWriteData(mainLogicLambda);
     routesTable.grantReadWriteData(mainLogicLambda);
 
-    const signedUrlLambda = new lambda.Function(this, "SignedUrlLambda", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "signedUrl.handler",
-      code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
+    const signedUrlLambda = new NodejsFunction(this, "SignedUrlLambda", {
+      entry: path.join(__dirname, "../lambda/signedUrl/index.js"),
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: "handler",
       environment: {
         IMAGES_BUCKET: imagesBucket.bucketName,
+      },
+      bundling: {
+        externalModules: ["aws-sdk"],
+        minify: true,
+        sourceMap: true,
       },
     });
 
