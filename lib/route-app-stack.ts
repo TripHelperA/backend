@@ -257,7 +257,7 @@ export class RouteAppStack extends cdk.Stack {
             "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "title": $util.dynamodb.toDynamoDBJson($ctx.args.input.title),
             "description": $util.dynamodb.toDynamoDBJson($ctx.args.input.description),
-            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable ? "true" : "false") 
+            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable ? "true" : "false"), 
             "locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
             "createdAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
           }
