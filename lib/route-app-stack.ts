@@ -257,7 +257,7 @@ export class RouteAppStack extends cdk.Stack {
             "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "title": $util.dynamodb.toDynamoDBJson($ctx.args.input.title),
             "description": $util.dynamodb.toDynamoDBJson($ctx.args.input.description),
-            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable ? "true" : "false") 
+            "sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable),
             "locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
             "createdAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
           }
@@ -267,6 +267,7 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
+
 
     routesDataSource.createResolver("UpdateRouteResolver", {
       typeName: "Mutation",
@@ -449,6 +450,7 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
+
     // AppSync data source & resolver
     const mainLambdaDataSource = api.addLambdaDataSource(
       "MainLambdaDataSource",
@@ -499,5 +501,6 @@ export class RouteAppStack extends cdk.Stack {
     new cdk.CfnOutput(this, "IdentityPoolId", { value: identityPool.ref });
     new cdk.CfnOutput(this, "GraphQLAPIURL", { value: api.graphqlUrl });
     new cdk.CfnOutput(this, "Region", { value: this.region });
+    new cdk.CfnOutput(this, "GraphQLAPIID", { value: api.apiId });
   }
 }

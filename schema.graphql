@@ -9,14 +9,21 @@ type User {
   routeIds: [ID]
   metrics: [String]
 }
+
 type Route {
   routeId: ID!
   userId: ID!
   title: String!
   description: String
-  sharable: Boolean!
-  locations: [String]!
+  sharable: String!
+  locations: [Location!]!
   createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+type Location {
+  placeId: String!
+  isOnTheRoute: Boolean!
 }
 type Review {
   authorName: String!
@@ -26,7 +33,6 @@ type Review {
   time: AWSDateTime
   relativeTime: String
 }
-
 type PlaceInfo {
   title: String!
   latitude: Float!
@@ -45,6 +51,11 @@ input UserInput {
   familyName: String!
 }
 
+input LocationInput {
+  placeId: String!
+  isOnTheRoute: Boolean!
+}
+
 input mainLogicUserInput {
   startingPlace: Coordinate!
   title: String!
@@ -56,8 +67,8 @@ input mainLogicUserInput {
 input RouteInput {
   title: String!
   description: String
-  sharable: Boolean!
-  locations: [String!]!
+  sharable: String!
+  locations: [LocationInput!]!
 }
 
 type Query {
