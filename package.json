@@ -25,8 +25,10 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.901.0",
     "@aws-sdk/client-dynamodb": "^3.902.0",
+    "@aws-sdk/client-s3": "^3.901.0",
     "@aws-sdk/credential-providers": "^3.901.0",
     "@aws-sdk/lib-dynamodb": "^3.902.0",
+    "@aws-sdk/s3-request-presigner": "^3.901.0",
     "aws-cdk-lib": "^2.218.0",
     "axios": "^1.12.2",
     "client-bedrock-runtime": "github:aws-sdk/client-bedrock-runtime",
