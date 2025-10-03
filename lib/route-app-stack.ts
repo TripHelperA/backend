@@ -5,6 +5,8 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+
 import { Construct } from "constructs";
 
 export class RouteAppStack extends cdk.Stack {
@@ -343,51 +345,66 @@ export class RouteAppStack extends cdk.Stack {
         roles: { authenticated: authenticatedRole.roleArn },
       }
     );
-    const mainLogicLambda = new lambda.Function(this, "MainLogicLambda", {
+
+    // Main Logic Lambda
+    const mainLogicLambda = new NodejsFunction(this, "MainLogicLambda", {
+      entry: path.join(__dirname, "../lambda/mainLogic/index.js"),
+      handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
       environment: {
         USER_TABLE: usersTable.tableName,
         ROUTES_TABLE: routesTable.tableName,
-        GOOGLE_API_KEY: "<Your-api-key-here>", // use Secrets Manager for production
+        GOOGLE_API_KEY: "<YOUR_API_KEY_HERE>", // optional
+      },
+      bundling: {
+        externalModules: ["aws-sdk"],
+        minify: true,
+        sourceMap: true,
       },
     });
 
-    // Grant Lambda permissions
+    // Grant DynamoDB permissions
     usersTable.grantReadWriteData(mainLogicLambda);
     routesTable.grantReadWriteData(mainLogicLambda);
 
-    mainLogicLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["bedrock:InvokeModel"],
-        resources: ["*"], // restrict in production
-      })
-    );
-
-    // Add Lambda as AppSync data source
+    // AppSync data source & resolver
     const mainLambdaDataSource = api.addLambdaDataSource(
       "MainLambdaDataSource",
       mainLogicLambda
     );
 
-    // Attach resolver to GraphQL mutation
     mainLambdaDataSource.createResolver("MainLogicRequestResolver", {
       typeName: "Mutation",
       fieldName: "mainLogicRequest",
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-    {
-      "version": "2018-05-29",
-      "operation": "Invoke",
-      "payload": {
-        "arguments": $util.toJson($ctx.arguments),
-        "identity": $util.toJson($ctx.identity)
-      }
-    }
-  `),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-    $util.toJson($ctx.result)
-  `),
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+
+    //Get PLace Info Lambda
+    const getPlaceInfoLambda = new NodejsFunction(this, "GetPlaceInfoLambda", {
+      entry: path.join(__dirname, "../lambda/getPlaceInfo/index.js"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      environment: {
+        GOOGLE_API_KEY: "<YOUR_GOOGLE_API_KEY_HERE>", //FIXME: use aws secret manager
+      },
+      bundling: {
+        externalModules: ["aws-sdk"],
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    // AppSync data source & resolver
+    const placeInfoDataSource = api.addLambdaDataSource(
+      "PlaceInfoDataSource",
+      getPlaceInfoLambda
+    );
+    placeInfoDataSource.createResolver("GetPlaceInfoResolver", {
+      typeName: "Query",
+      fieldName: "getPlaceInfo",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
 
     // outputs for configs etc

@@ -2,18 +2,7 @@ type User {
   userId: ID!
   firstName: String!
   familyName: String!
-  routeIds: [ID!]!
-}
-
-input UserInput {
-  firstName: String!
-  familyName: String!
-}
-
-input mainLogicUserInput {
-  startingPlace: String!
-  endPlace: String!
-  userInput: String!
+  routeIds: [ID]
 }
 type Route {
   routeId: ID!
@@ -24,6 +13,36 @@ type Route {
   locations: [String!]!
   createdAt: AWSDateTime
   updatedAt: AWSDateTime
+}
+type Review {
+  authorName: String!
+  profilePhotoUrl: String
+  rating: Float
+  text: String!
+  time: AWSDateTime
+  relativeTime: String
+}
+
+type PlaceInfo {
+  title: String!
+  latitude: Float!
+  longitude: Float!
+  rating: Float!
+  description: String
+  reviews: [Review]
+  photoURL: String
+}
+
+input UserInput {
+  firstName: String!
+  familyName: String!
+}
+
+input mainLogicUserInput {
+  startingPlace: String!
+  title: String!
+  endPlace: String!
+  userInput: String!
 }
 
 input RouteInput {
@@ -37,6 +56,8 @@ type Query {
   getUser(userId: ID!): User
   getRoute(routeId: ID!): Route
   getUserRoutes(userId: ID!): [Route]
+  getPlaceInfo(input: String!): PlaceInfo
+  getAllRoutes: [Route]
 }
 
 type Mutation {
@@ -45,7 +66,7 @@ type Mutation {
   createRoute(input: RouteInput!): Route
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route
-  mainLogicRequest(input: mainLogicUserInput!): [String!]!
+  mainLogicRequest(input: mainLogicUserInput!): String!
 }
 
 schema {

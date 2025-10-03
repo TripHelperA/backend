@@ -88,5 +88,5 @@ exports.handler = async function(event) {
         },
     }).promise();
 
-    return [routeId, "BANA BAGIRMA"];
+    return routeId;
 };
