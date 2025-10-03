@@ -54,7 +54,7 @@ input RouteInput {
   title: String!
   description: String
   sharable: Boolean!
-  locations: [String!]!
+  locations: [Location!]!
 }
 
 type Query {
