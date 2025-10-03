@@ -1,8 +1,13 @@
+type SignedUrl {
+  url: String!
+  key: String!
+}
 type User {
   userId: ID!
   firstName: String!
   familyName: String!
   routeIds: [ID]
+  metrics: [String]
 }
 type Route {
   routeId: ID!
@@ -10,9 +15,8 @@ type Route {
   title: String!
   description: String
   sharable: Boolean!
-  locations: [String!]!
+  locations: [String]!
   createdAt: AWSDateTime
-  updatedAt: AWSDateTime
 }
 type Review {
   authorName: String!
@@ -32,17 +36,21 @@ type PlaceInfo {
   reviews: [Review]
   photoURL: String
 }
-
+input Coordinate {
+  latitude: Float!
+  longitude: Float!
+}
 input UserInput {
   firstName: String!
   familyName: String!
 }
 
 input mainLogicUserInput {
-  startingPlace: String!
+  startingPlace: Coordinate!
   title: String!
-  endPlace: String!
+  endPlace: Coordinate!
   userInput: String!
+  stopCount: Int!
 }
 
 input RouteInput {
@@ -73,9 +81,4 @@ type Mutation {
 schema {
   query: Query
   mutation: Mutation
-}
-
-type SignedUrl {
-  url: String!
-  key: String!
 }

@@ -360,10 +360,14 @@ export class RouteAppStack extends cdk.Stack {
       entry: path.join(__dirname, "../lambda/mainLogic/index.js"),
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.seconds(120), // increase from default 3
+
       environment: {
         USER_TABLE: usersTable.tableName,
         ROUTES_TABLE: routesTable.tableName,
-        GOOGLE_API_KEY: "<YOUR_API_KEY_HERE>", // optional
+        GOOGLE_API_KEY:
+          process.env.GOOGLE_MAPS_API_KEY ||
+          "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", //FIXME: use aws secret manager
       },
       bundling: {
         externalModules: ["aws-sdk"],
@@ -372,6 +376,15 @@ export class RouteAppStack extends cdk.Stack {
       },
     });
 
+    mainLogicLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream", // include if you'll stream responses
+        ],
+        resources: [`arn:aws:bedrock:${this.region}::foundation-model/*`],
+      })
+    );
     // s3 bucket for images
     const imagesBucket = new s3.Bucket(this, "RouteAppImagesBucket", {
       versioned: true,
@@ -455,7 +468,9 @@ export class RouteAppStack extends cdk.Stack {
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       environment: {
-        GOOGLE_API_KEY: "<YOUR_GOOGLE_API_KEY_HERE>", //FIXME: use aws secret manager
+        GOOGLE_API_KEY:
+          process.env.GOOGLE_MAPS_API_KEY ||
+          "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", //FIXME: use aws secret manager
       },
       bundling: {
         externalModules: ["aws-sdk"],

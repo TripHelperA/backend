@@ -1,92 +1,81 @@
-const { DynamoDB } = require("aws-sdk");
-const https = require("https");
+// index.js (CJS)
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const {
+  DynamoDBDocumentClient,
+  PutCommand,
+  UpdateCommand,
+} = require("@aws-sdk/lib-dynamodb");
+const { v4: uuidv4 } = require("uuid");
+const { outputPlaces } = require("./routeFunc");
 
-const ddb = new DynamoDB.DocumentClient();
+const ddbDoc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-/**
- * Promisified GET request using Node.js's native 'https' module.
- */
-function httpsGet(url) {
-    const urlParts = new URL(url);
+exports.handler = async function (event) {
+  console.log("Event:", JSON.stringify(event, null, 2));
 
-    const options = {
-        hostname: urlParts.hostname,
-        path: urlParts.pathname + urlParts.search,
-        method: 'GET',
-    };
+  const userId = event.identity?.sub || "test-user";
+  const routesTable = process.env.ROUTES_TABLE;
+  const usersTable = process.env.USER_TABLE;
+  const input = event.arguments.input;
+  try {
+    const routeId = `route-${uuidv4()}`;
 
-    return new Promise((resolve, reject) => {
-        const req = https.request(options, (res) => {
-            let data = '';
-
-            if (res.statusCode < 200 || res.statusCode >= 300) {
-                return reject(new Error(`HTTP status code ${res.statusCode} for ${url}`));
-            }
-
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(new Error("Failed to parse JSON response."));
-                }
-            });
-        });
-
-        req.on('error', (err) => {
-            reject(err);
-        });
-
-        req.end();
-    });
-}
-
-exports.handler = async function(event) {
-    console.log("Event:", JSON.stringify(event, null, 2));
-
-    const userId = event.identity?.sub || "test-user";
-    const routesTable = process.env.ROUTES_TABLE;
-    const usersTable = process.env.USER_TABLE;
-    const googleApiKey = process.env.GOOGLE_API_KEY;
-
-    // Call Google Places API using native 'https' module
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=40.748817,-73.985428&radius=1500&type=restaurant&key=${googleApiKey}`;
-    
-    const responseData = await httpsGet(url); 
-    
-    const place = responseData.results?.[0] || { name: "Unknown Place" }; 
-
-    const routeId = "TEST-BUILD-ROUTE-ID-12345"; 
+    // Call your planner
+    // If outputPlaces returns [chosenPlaces, allSuggestedPool], destructure it:
+    var chosenPlaces, allSuggestedPool;
+    [chosenPlaces, allSuggestedPool] = await outputPlaces(
+      {
+        lat: input.startingPlace.latitude,
+        long: input.startingPlace.longitude,
+      },
+      { lat: input.endPlace.latitude, long: input.endPlace.longitude },
+      { dis_w: 200, ai_w: 1, stationCount: input.stopCount },
+      input.userInput,
+      [5, 5, 5, 5, 5, 5, 5, 5]
+    );
+    var locations = [];
+    // var locationsKey = [];
+    // locationsKey.push(...Object.keys(allSuggestedPool).sort((a, b) => a - b));
+    for(var key in allSuggestedPool){
+        locations.push({"isOnTheRoute":allSuggestedPool[key][3], "placeId":allSuggestedPool[key][4]})
+    }
 
     const newRoute = {
-        routeId,
-        userId,
-        title: place.name,
-        description: "Created via mainLogic Lambda (TEST BUILD)",
-        sharable: true,
-        locations: [place.name],
-        createdAt: new Date().toISOString(),
+      routeId,
+      userId,
+      title: input.title,
+      description: "",
+      sharable: "false", 
+      locations: locations, // array of strings
+      createdAt: new Date().toISOString(),
     };
 
-    // Insert into RoutesTable
-    await ddb.put({
+    // Put route
+    await ddbDoc.send(
+      new PutCommand({
         TableName: routesTable,
         Item: newRoute,
-    }).promise();
+      })
+    );
 
-    // Append routeId to user's routeIds list
-    await ddb.update({
+    // Append to user.routeIds (list_append equivalent)
+    await ddbDoc.send(
+      new UpdateCommand({
         TableName: usersTable,
         Key: { userId },
-        UpdateExpression: "SET routeIds = list_append(if_not_exists(routeIds, :empty), :r)",
+        UpdateExpression:
+          "SET routeIds = list_append(if_not_exists(routeIds, :empty), :r)",
         ExpressionAttributeValues: {
-            ":r": [routeId],
-            ":empty": [],
+          ":r": [routeId],
+          ":empty": [],
         },
-    }).promise();
+      })
+    );
 
     return routeId;
+  } catch (error) {
+    console.error("Route generation failed:", error.message);
+    // This will send the error message back to the GraphQL client.
+    return error("Route generation failed:", error.message);
+  }
 };
