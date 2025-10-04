@@ -598,6 +598,28 @@ export class RouteAppStack extends cdk.Stack {
       saveLocationsLambda
     );
 
+    routesDataSource.createResolver("GetAllRoutesSharableResolver", {
+      typeName: "Query",
+      fieldName: "getAllRoutes",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+        {
+          "version": "2017-02-28",
+          "operation": "Query",
+          "index": "SharableIndex",
+          "query": {
+            "expression": "sharable = :trueVal",
+            "expressionValues": {
+              ":trueVal": $util.dynamodb.toDynamoDBJson("true")
+            }
+          },
+          "scanIndexForward": false
+        }
+      `),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+        $util.toJson($ctx.result.items)
+      `),
+    });
+
     saveLocationsDS.createResolver("SaveLocationsResolver", {
       typeName: "Mutation",
       fieldName: "saveLocations",
