@@ -465,7 +465,7 @@ export class RouteAppStack extends cdk.Stack {
       signedUrlLambda
     );
 
-// lambda for converting PNG → JPG
+    // lambda for converting PNG → JPG
     const convertLambda = new NodejsFunction(this, "ConvertToJpgLambda", {
       entry: path.join(__dirname, "../lambda/convertImage/index.js"),
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -509,7 +509,7 @@ export class RouteAppStack extends cdk.Stack {
     );
 
     mainLambdaDataSource.createResolver("MainLogicRequestResolver", {
-      typeName: "Mutation",
+      typeName: "Query",
       fieldName: "mainLogicRequest",
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
@@ -523,7 +523,7 @@ export class RouteAppStack extends cdk.Stack {
       environment: {
         GOOGLE_API_KEY:
           process.env.GOOGLE_MAPS_API_KEY ||
-          ".", //FIXME: use aws secret manager
+          "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", //FIXME: use aws secret manager
       },
       bundling: {
         externalModules: ["aws-sdk"],
@@ -543,7 +543,35 @@ export class RouteAppStack extends cdk.Stack {
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
+    // Lambda function for getting Place ID
+    const getPlaceIdLambda = new NodejsFunction(this, "GetPlaceIdLambda", {
+      entry: path.join(__dirname, "../lambda/getPlaceId/index.js"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      environment: {
+        GOOGLE_API_KEY:
+          process.env.GOOGLE_MAPS_API_KEY ||
+          "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", //FIXME:
+      },
+      bundling: {
+        externalModules: ["aws-sdk"],
+        minify: true,
+        sourceMap: true,
+      },
+    });
 
+    // AppSync data source and resolver for getPlaceID
+    const placeIdDataSource = api.addLambdaDataSource(
+      "PlaceIdDataSource",
+      getPlaceIdLambda
+    );
+
+    placeIdDataSource.createResolver("GetPlaceIdResolver", {
+      typeName: "Query",
+      fieldName: "getPlaceID",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
     // outputs for configs etc
     new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {

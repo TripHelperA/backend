@@ -22,6 +22,8 @@ type Route {
 }
 
 type Location {
+  latitude: Float!
+  longitude: Float!
   placeId: String!
   isOnTheRoute: Boolean!
 }
@@ -58,7 +60,6 @@ input LocationInput {
 
 input mainLogicUserInput {
   startingPlace: Coordinate!
-  title: String!
   endPlace: Coordinate!
   userInput: String!
   stopCount: Int!
@@ -76,7 +77,9 @@ type Query {
   getRoute(routeId: ID!): Route
   getUserRoutes(userId: ID!): [Route]
   getPlaceInfo(input: String!): PlaceInfo
+  getPlaceID(input: Coordinate!): String!
   getAllRoutes: [Route]
+  mainLogicRequest(input: mainLogicUserInput!): [Location!]!
 }
 
 type Mutation {
@@ -86,7 +89,6 @@ type Mutation {
   createRoute(input: RouteInput!): Route
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route
-  mainLogicRequest(input: mainLogicUserInput!): String!
   generateSignedUrl(type: String!, id: ID!, mode: String!): SignedUrl!
 }
 

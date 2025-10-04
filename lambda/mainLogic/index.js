@@ -4,6 +4,7 @@ const {
   DynamoDBDocumentClient,
   PutCommand,
   UpdateCommand,
+  GetCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { v4: uuidv4 } = require("uuid");
 const { outputPlaces } = require("./routeFunc");
@@ -14,11 +15,9 @@ exports.handler = async function (event) {
   console.log("Event:", JSON.stringify(event, null, 2));
 
   const userId = event.identity?.sub || "test-user";
-  const routesTable = process.env.ROUTES_TABLE;
   const usersTable = process.env.USER_TABLE;
   const input = event.arguments.input;
   try {
-    const routeId = `route-${uuidv4()}`;
 
     const userResult = await ddbDoc.send(
       new GetCommand({
@@ -46,45 +45,12 @@ exports.handler = async function (event) {
     // var locationsKey = [];
     // locationsKey.push(...Object.keys(allSuggestedPool).sort((a, b) => a - b));
     for(var key in allSuggestedPool){
-        locations.push({"isOnTheRoute":allSuggestedPool[key][3], "placeId":allSuggestedPool[key][4]})
+        locations.push({"latitude":allSuggestedPool[key][0],"longitude":allSuggestedPool[key][1],"isOnTheRoute":allSuggestedPool[key][3], "placeId":allSuggestedPool[key][4]})
     }
-
-    const newRoute = {
-      routeId,
-      userId,
-      title: input.title,
-      description: "",
-      sharable: "false", 
-      locations: locations, // array of strings
-      createdAt: new Date().toISOString(),
-    };
-
-    // Put route
-    await ddbDoc.send(
-      new PutCommand({
-        TableName: routesTable,
-        Item: newRoute,
-      })
-    );
-
-    // Append to user.routeIds (list_append equivalent)
-    await ddbDoc.send(
-      new UpdateCommand({
-        TableName: usersTable,
-        Key: { userId },
-        UpdateExpression:
-          "SET routeIds = list_append(if_not_exists(routeIds, :empty), :r)",
-        ExpressionAttributeValues: {
-          ":r": [routeId],
-          ":empty": [],
-        },
-      })
-    );
-
-    return routeId;
+    return locations;
   } catch (error) {
     console.error("Route generation failed:", error.message);
     // This will send the error message back to the GraphQL client.
-    return error("Route generation failed:", error.message);
+    throw new Error(`Route generation failed: ${error.message}`);
   }
 };
