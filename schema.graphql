@@ -4,10 +4,10 @@ type SignedUrl {
 }
 type User {
   userId: ID!
-  firstName: String!
-  familyName: String!
+  firstName: String
+  familyName: String
   routeIds: [ID]
-  metrics: [String]
+  userMetrics: [Int]
 }
 
 type Route {
@@ -82,6 +82,7 @@ type Query {
 type Mutation {
   createUser(input: UserInput!): User
   updateUser(userId: ID!, input: UserInput!): User
+  updateUserMetrics(metrics: [Int!]!): [Int!]!
   createRoute(input: RouteInput!): Route
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route

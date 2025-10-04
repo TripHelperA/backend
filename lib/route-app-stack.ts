@@ -114,7 +114,11 @@ export class RouteAppStack extends cdk.Stack {
                 email: { S: email },
                 firstName: { S: firstName },
                 familyName: { S: familyName },
-                routeIds: { L: [] }
+                routeIds: { L: [] },
+                userMetrics: { L: [
+                  { N: "4" }, { N: "4" }, { N: "4" }, { N: "4" },
+                  { N: "4" }, { N: "4" }, { N: "4" }, { N: "4" }
+                ]}
               }
             }));
           } catch (err) {
@@ -192,13 +196,41 @@ export class RouteAppStack extends cdk.Stack {
           "attributeValues": {
             "firstName": $util.dynamodb.toDynamoDBJson($ctx.args.input.firstName),
             "familyName": $util.dynamodb.toDynamoDBJson($ctx.args.input.familyName),
-            "routeIds": { "L": [] }
+            "routeIds": { "L": [] },
+            "userMetrics": { L: [
+                  { N: "4" }, { N: "4" }, { N: "4" }, { N: "4" },
+                  { N: "4" }, { N: "4" }, { N: "4" }, { N: "4" }
+                ]}
+              }
           }
         }
       `),
       responseMappingTemplate: appsync.MappingTemplate.fromString(`
         $util.toJson($ctx.result)
       `),
+    });
+
+    usersDataSource.createResolver("UpdateUserMetricsResolver", {
+      typeName: "Mutation",
+      fieldName: "updateUserMetrics",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+    {
+      "version": "2017-02-28",
+      "operation": "UpdateItem",
+      "key": {
+        "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+      },
+      "update": {
+        "expression": "SET userMetrics = :metrics",
+        "expressionValues": {
+          ":metrics": $util.dynamodb.toDynamoDBJson($ctx.args.metrics)
+        }
+      }
+    }
+  `),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+    $util.toJson($ctx.result.userMetrics)
+  `),
     });
 
     routesDataSource.createResolver("GetUserRoutesResolver", {
@@ -267,7 +299,6 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
-
 
     routesDataSource.createResolver("UpdateRouteResolver", {
       typeName: "Mutation",
