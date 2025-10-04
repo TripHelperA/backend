@@ -20,7 +20,15 @@ exports.handler = async function (event) {
   try {
     const routeId = `route-${uuidv4()}`;
 
-    // Call your planner
+    const userResult = await ddbDoc.send(
+      new GetCommand({
+        TableName: usersTable,
+        Key: { userId },
+        ProjectionExpression: "userMetrics",
+      })
+    );
+
+    const userMetrics = userResult.Item?.userMetrics || [5,5,5,5,5,5,5,5]; 
     // If outputPlaces returns [chosenPlaces, allSuggestedPool], destructure it:
     var chosenPlaces, allSuggestedPool;
     [chosenPlaces, allSuggestedPool] = await outputPlaces(
@@ -31,8 +39,9 @@ exports.handler = async function (event) {
       { lat: input.endPlace.latitude, long: input.endPlace.longitude },
       { dis_w: 200, ai_w: 1, stationCount: input.stopCount },
       input.userInput,
-      [5, 5, 5, 5, 5, 5, 5, 5]
+      userMetrics
     );
+
     var locations = [];
     // var locationsKey = [];
     // locationsKey.push(...Object.keys(allSuggestedPool).sort((a, b) => a - b));
