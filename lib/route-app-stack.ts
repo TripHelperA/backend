@@ -565,13 +565,46 @@ export class RouteAppStack extends cdk.Stack {
       "PlaceIdDataSource",
       getPlaceIdLambda
     );
-
     placeIdDataSource.createResolver("GetPlaceIdResolver", {
       typeName: "Query",
       fieldName: "getPlaceID",
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
+
+    const saveLocationsLambda = new NodejsFunction(
+      this,
+      "SaveLocationsLambda",
+      {
+        entry: path.join(__dirname, "../lambda/saveLocations/index.js"),
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_22_X,
+        environment: {
+          ROUTES_TABLE: routesTable.tableName,
+        },
+        bundling: {
+          externalModules: ["aws-sdk"],
+          minify: true,
+        },
+      }
+    );
+
+    // Permissions
+    routesTable.grantReadWriteData(saveLocationsLambda);
+
+    // AppSync Data Source
+    const saveLocationsDS = api.addLambdaDataSource(
+      "SaveLocationsDataSource",
+      saveLocationsLambda
+    );
+
+    saveLocationsDS.createResolver("SaveLocationsResolver", {
+      typeName: "Mutation",
+      fieldName: "saveLocations",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+
     // outputs for configs etc
     new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new cdk.CfnOutput(this, "UserPoolClientId", {

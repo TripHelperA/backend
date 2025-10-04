@@ -2,6 +2,7 @@ type SignedUrl {
   url: String!
   key: String!
 }
+
 type User {
   userId: ID!
   firstName: String
@@ -22,11 +23,12 @@ type Route {
 }
 
 type Location {
-  latitude: Float!
-  longitude: Float!
+  latitude: Float
+  longitude: Float
   placeId: String!
   isOnTheRoute: Boolean!
 }
+
 type Review {
   authorName: String!
   profilePhotoUrl: String
@@ -35,6 +37,7 @@ type Review {
   time: AWSDateTime
   relativeTime: String
 }
+
 type PlaceInfo {
   title: String!
   latitude: Float!
@@ -44,10 +47,12 @@ type PlaceInfo {
   reviews: [Review]
   photoURL: String
 }
+
 input Coordinate {
   latitude: Float!
   longitude: Float!
 }
+
 input UserInput {
   firstName: String!
   familyName: String!
@@ -56,6 +61,8 @@ input UserInput {
 input LocationInput {
   placeId: String!
   isOnTheRoute: Boolean!
+  latitude: Float
+  longitude: Float
 }
 
 input mainLogicUserInput {
@@ -68,8 +75,20 @@ input mainLogicUserInput {
 input RouteInput {
   title: String!
   description: String
-  sharable: String!
+  sharable: String
   locations: [LocationInput!]!
+}
+
+input LocationSaveInput {
+  title: String!
+  description: String
+  sharable: String
+  locations: [LocationInput!]!
+}
+
+type SaveLocationsResponse {
+  routeId: ID!
+  locations: [Location!]!
 }
 
 type Query {
@@ -90,6 +109,7 @@ type Mutation {
   updateRoute(routeId: ID!, input: RouteInput!): Route
   deleteRoute(routeId: ID!): Route
   generateSignedUrl(type: String!, id: ID!, mode: String!): SignedUrl!
+  saveLocations(input: LocationSaveInput!): SaveLocationsResponse!
 }
 
 schema {
