@@ -42,6 +42,9 @@ exports.handler = async (event) => {
       }),
       { expiresIn: 300 }
     );
+  } else if (mode === "view") {
+    // signed GET URL
+    url = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
   } else throw new Error("Invalid mode. Must be 'upload' or 'download'");
 
   return { url, key };
