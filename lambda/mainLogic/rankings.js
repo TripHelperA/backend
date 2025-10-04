@@ -1,3 +1,4 @@
+// rankings.js
 import { distanceBetween } from "./coordinates.js";
 import {
   BedrockRuntimeClient,
@@ -6,12 +7,13 @@ import {
 
 // ==== CONFIG ====
 const REVIEWS_PER_PLACE = 3; // use up to N reviews per place
+const CONCURRENCY_LIMIT = 5; // 4–6 is usually safe for Lambda
 
 // ---- 0) Bedrock client (reuse ONE client; enable retries) ----
 const client = new BedrockRuntimeClient({
-  region: "us-east-1",
+  region: process.env.AWS_REGION || "us-east-1",
   maxAttempts: 10,
-  // retryMode: "adaptive", // optional if your SDK supports it
+  retryMode: "adaptive",
 });
 
 // ---- 1) Strict JSON schema for the tool ----
@@ -41,7 +43,6 @@ const EmitSchema = {
   required: ["metrics"],
 };
 
-// ---- 2) Tool config that forces the JSON shape ----
 const toolConfig = {
   tools: [
     {
@@ -55,7 +56,7 @@ const toolConfig = {
   toolChoice: { tool: { name: "emit_json" } },
 };
 
-// ---- 3) Retry helpers ----
+// ---- Retry helpers ----
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function isRetryable(err) {
   const code = err?.$metadata?.httpStatusCode;
@@ -84,7 +85,7 @@ async function withBackoff(fn, { max = 6, base = 250, cap = 6000 } = {}) {
   }
 }
 
-// ---- 4) Converse call ----
+// ---- Converse call ----
 async function invokeClaudeConverse(prompt) {
   const cmd = new ConverseCommand({
     modelId:
@@ -149,32 +150,7 @@ function buildPromptFromReviews(reviewTexts) {
   );
 }
 
-//////////////////////////////////////////////////////////////
-// PUBLIC API
-//////////////////////////////////////////////////////////////
-
-/**
- * Rank ONLY the ids present in suggestedPlacesPool.
- *
- * @param {Object} suggestedPlacesPool
- *   {
- *     "1": {
- *       lat: number,
- *       long: number,
- *       reviews: string[],      // up to 3 review strings
- *       name: string,
- *       google_place_id: string
- *     },
- *     ...
- *   }
- * @param {string} [newBedrockPrompt="Restaurants"] Optional prefix in the prompt.
- *
- * @returns {Object} suggestedPlacesMetrics
- *   {
- *     "1": [lat, long, {metrics}, false, "google_place_id"],
- *     ...
- *   }
- */
+// ======= NEW CONCURRENT rankPlaces() =======
 export async function rankPlaces(suggestedPlacesPool, newBedrockPrompt) {
   const ids = Object.keys(suggestedPlacesPool || {}).sort((a, b) => Number(a) - Number(b));
   const suggestedPlacesMetrics = {};
@@ -184,50 +160,61 @@ export async function rankPlaces(suggestedPlacesPool, newBedrockPrompt) {
     return suggestedPlacesMetrics;
   }
 
-  for (const id of ids) {
-    const place = suggestedPlacesPool[id] || {};
-    const name = place.name ?? "(no name)";
-    const google_place_id = place.google_place_id ?? null;
+  console.log(`RankPlaces: ${ids.length} places, concurrency=${CONCURRENCY_LIMIT}`);
 
-    // Up to REVIEWS_PER_PLACE review strings
-    const reviewStrings = (place.reviews ?? [])
-      .map((s) => String(s ?? "").trim())
-      .filter(Boolean)
-      .slice(0, REVIEWS_PER_PLACE);
-
-    if (reviewStrings.length === 0) {
-      console.warn(`rankPlaces: no reviews for id=${id} (${name}); skipping.`);
-      continue;
-    }
-
-    const userPrompt =
-      (newBedrockPrompt ? `${newBedrockPrompt.trim()}\n` : "") +
-      buildPromptFromReviews(reviewStrings);
-
+  // Small async pool implementation (no external deps)
+  const active = new Set();
+  async function runTask(id) {
     try {
+      const place = suggestedPlacesPool[id];
+      const name = place.name ?? "(no name)";
+      const reviews = (place.reviews ?? []).slice(0, REVIEWS_PER_PLACE).filter(Boolean);
+
+      if (reviews.length === 0) {
+        console.warn(`rankPlaces: no reviews for id=${id} (${name}); skipping.`);
+        return;
+      }
+
+      const userPrompt =
+        (newBedrockPrompt ? `${newBedrockPrompt.trim()}\n` : "") +
+        buildPromptFromReviews(reviews);
+
+      console.time(`Bedrock-${id}`);
       const { metrics } = await invokeClaudeConverse(userPrompt);
+      console.timeEnd(`Bedrock-${id}`);
 
-      const lat = place.lat ?? place.latitude ?? null;
-      const long = place.long ?? place.longitude ?? null;
-
-      // Return shape requested: [lat, long, {metrics}, false, "google_place_id"]
-      suggestedPlacesMetrics[id] = [lat, long, metrics, false, google_place_id];
+      suggestedPlacesMetrics[id] = [
+        place.lat ?? place.latitude ?? null,
+        place.long ?? place.longitude ?? null,
+        metrics,
+        false,
+        place.google_place_id ?? null,
+      ];
 
       console.log(`rankPlaces: scored id=${id} (${name})`);
     } catch (err) {
-      console.error(`rankPlaces: scoring failed for id=${id} (${name}):`, err?.message || err);
+      console.error(`rankPlaces: scoring failed for id=${id}:`, err?.message || err);
     }
-
-    // jitter to avoid bursts
-    await sleep(150 + Math.random() * 300);
   }
 
+  // Feed tasks with limited concurrency
+  for (const id of ids) {
+    const task = runTask(id).finally(() => active.delete(task));
+    active.add(task);
+    if (active.size >= CONCURRENCY_LIMIT) {
+      await Promise.race(active);
+    }
+  }
+
+  // Wait for remaining
+  await Promise.allSettled(active);
+
+  console.log("rankPlaces: completed all Bedrock calls.");
   return suggestedPlacesMetrics;
 }
 
 /**
- * Choose best place using distance + AI score.
- * NOTE: Works unchanged with the new tuple: [lat, long, metrics, _flag, _gpid]
+ * getBestPlace remains unchanged below.
  */
 export function getBestPlace(
   powConstant,
@@ -250,7 +237,6 @@ export function getBestPlace(
     const resultMap = {};
 
     metricKeys.forEach((mk, i) => {
-      // Weighted by powered weights + a small history term
       resultMap[mk] = metrics[mk] * (poweredWeightsArr[i] + 0.5 * (userHistory?.[i] ?? 0));
     });
 
@@ -266,20 +252,20 @@ export function getBestPlace(
     const [lat, long] = suggestedPlacesMetrics[key];
     const distanceToEnd = distanceBetween(lat, long, endPlace.lat, endPlace.long);
 
-    const rating = dis_weight * (1 - distanceToEnd / initialDistance) +
-                   ai_weight * resultingWeightMap[key];
-    console.log("Rating for " + key + ": " + rating)
-
+    const rating =
+      dis_weight * (1 - distanceToEnd / initialDistance) +
+      ai_weight * resultingWeightMap[key];
     if (rating > highestRating) {
       placeIdWithHighestRating = key;
       highestRating = rating;
     }
   }
 
-  // Return winning id and its lat/long (indices 0,1)
   return [
     placeIdWithHighestRating,
-    { lat: suggestedPlacesMetrics[placeIdWithHighestRating][0],
-      long: suggestedPlacesMetrics[placeIdWithHighestRating][1] },
+    {
+      lat: suggestedPlacesMetrics[placeIdWithHighestRating][0],
+      long: suggestedPlacesMetrics[placeIdWithHighestRating][1],
+    },
   ];
 }
