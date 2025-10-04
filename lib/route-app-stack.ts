@@ -263,7 +263,6 @@ export class RouteAppStack extends cdk.Stack {
           "version": "2017-02-28",
           "operation": "GetItem",
           "key": {
-            "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "routeId": $util.dynamodb.toDynamoDBJson($ctx.args.routeId)
           }
         }
@@ -272,6 +271,7 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
+
 
     // mutations
     // CLient should pass true or false into sharable
@@ -309,8 +309,13 @@ export class RouteAppStack extends cdk.Stack {
           "version": "2017-02-28",
           "operation": "UpdateItem",
           "key": {
-            "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "routeId": $util.dynamodb.toDynamoDBJson($ctx.args.routeId)
+          },
+          "condition": {
+            "expression": "userId = :uid",
+            "expressionValues": {
+              ":uid": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            }
           },
           "update": {
             "expression": "SET #title = :title, #description = :description, #sharable = :sharable, #locations = :locations, #updatedAt = :updatedAt",
@@ -328,13 +333,15 @@ export class RouteAppStack extends cdk.Stack {
               ":locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
               ":updatedAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
             }
-          }
+          },
+          "ReturnValues": "ALL_NEW"
         }
       `),
       responseMappingTemplate: appsync.MappingTemplate.fromString(`
         $util.toJson($ctx.result)
       `),
     });
+
 
     routesDataSource.createResolver("DeleteRouteResolver", {
       typeName: "Mutation",
@@ -344,8 +351,13 @@ export class RouteAppStack extends cdk.Stack {
           "version": "2017-02-28",
           "operation": "DeleteItem",
           "key": {
-            "userId": $util.dynamodb.toDynamoDBJson($ctx.identity.sub),
             "routeId": $util.dynamodb.toDynamoDBJson($ctx.args.routeId)
+          },
+          "condition": {
+            "expression": "userId = :uid",
+            "expressionValues": {
+              ":uid": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+            }
           }
         }
       `),
@@ -353,6 +365,7 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
+
 
     // IAM Role for authenticated users
     const authenticatedRole = new iam.Role(this, "AuthenticatedRole", {
