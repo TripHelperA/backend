@@ -302,46 +302,44 @@ export class RouteAppStack extends cdk.Stack {
     });
 
     routesDataSource.createResolver("UpdateRouteResolver", {
-      typeName: "Mutation",
-      fieldName: "updateRoute",
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-        {
-          "version": "2017-02-28",
-          "operation": "UpdateItem",
-          "key": {
-            "routeId": $util.dynamodb.toDynamoDBJson($ctx.args.routeId)
+    typeName: "Mutation",
+    fieldName: "updateRoute",
+    requestMappingTemplate: appsync.MappingTemplate.fromString(`
+      {
+        "version": "2017-02-28",
+        "operation": "UpdateItem",
+        "key": {
+          "routeId": $util.dynamodb.toDynamoDBJson($ctx.args.routeId)
+        },
+        "condition": {
+          "expression": "userId = :uid",
+          "expressionValues": {
+            ":uid": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
+          }
+        },
+        "update": {
+          "expression": "SET #title = :title, #description = :description, #sharable = :sharable, #locations = :locations, #updatedAt = :updatedAt",
+          "expressionNames": {
+            "#title": "title",
+            "#description": "description",
+            "#sharable": "sharable",
+            "#locations": "locations",
+            "#updatedAt": "updatedAt"
           },
-          "condition": {
-            "expression": "userId = :uid",
-            "expressionValues": {
-              ":uid": $util.dynamodb.toDynamoDBJson($ctx.identity.sub)
-            }
-          },
-          "update": {
-            "expression": "SET #title = :title, #description = :description, #sharable = :sharable, #locations = :locations, #updatedAt = :updatedAt",
-            "expressionNames": {
-              "#title": "title",
-              "#description": "description",
-              "#sharable": "sharable",
-              "#locations": "locations",
-              "#updatedAt": "updatedAt"
-            },
-            "expressionValues": {
-              ":title": $util.dynamodb.toDynamoDBJson($ctx.args.input.title),
-              ":description": $util.dynamodb.toDynamoDBJson($ctx.args.input.description),
-              ":sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable),
-              ":locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
-              ":updatedAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
-            }
-          },
-          "ReturnValues": "ALL_NEW"
+          "expressionValues": {
+            ":title": $util.dynamodb.toDynamoDBJson($ctx.args.input.title),
+            ":description": $util.dynamodb.toDynamoDBJson($ctx.args.input.description),
+            ":sharable": $util.dynamodb.toDynamoDBJson($ctx.args.input.sharable),
+            ":locations": $util.dynamodb.toDynamoDBJson($ctx.args.input.locations),
+            ":updatedAt": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
+          }
         }
-      `),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-        $util.toJson($ctx.result)
-      `),
-    });
-
+      }
+    `),
+    responseMappingTemplate: appsync.MappingTemplate.fromString(`
+      $util.toJson($ctx.result)
+    `),
+  });
 
     routesDataSource.createResolver("DeleteRouteResolver", {
       typeName: "Mutation",
