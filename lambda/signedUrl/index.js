@@ -43,8 +43,8 @@ exports.handler = async (event) => {
       { expiresIn: 300 }
     );
   } else if (mode === "view") {
-    // signed GET URL
-    url = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  url = await getSignedUrl(s3, cmd, { expiresIn: 300 }); // 5 min
   } else throw new Error("Invalid mode. Must be 'upload' or 'download'");
 
   return { url, key };
