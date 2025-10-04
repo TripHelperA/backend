@@ -4,6 +4,7 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -464,6 +465,25 @@ export class RouteAppStack extends cdk.Stack {
       signedUrlLambda
     );
 
+// lambda for converting PNG → JPG
+    const convertLambda = new NodejsFunction(this, "ConvertToJpgLambda", {
+      entry: path.join(__dirname, "../lambda/convertImage/index.js"),
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: "handler",
+      bundling: {
+        externalModules: ["aws-sdk"],
+      },
+    });
+
+    imagesBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(convertLambda),
+      { suffix: ".png" }
+    );
+
+    // permissions
+    imagesBucket.grantReadWrite(convertLambda);
+
     signedUrlDataSource.createResolver("GenerateSignedUrlResolver", {
       typeName: "Mutation",
       fieldName: "generateSignedUrl",
@@ -503,7 +523,7 @@ export class RouteAppStack extends cdk.Stack {
       environment: {
         GOOGLE_API_KEY:
           process.env.GOOGLE_MAPS_API_KEY ||
-          "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", //FIXME: use aws secret manager
+          ".", //FIXME: use aws secret manager
       },
       bundling: {
         externalModules: ["aws-sdk"],
