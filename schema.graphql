@@ -99,6 +99,7 @@ type Query {
   getPlaceID(input: Coordinate!): String!
   getAllRoutes: [Route]
   mainLogicRequest(input: mainLogicUserInput!): [Location!]!
+  getStartEndPlaces(startPlace: String!, endPlace: String!): [Location!]!
 }
 
 type Mutation {

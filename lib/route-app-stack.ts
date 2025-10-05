@@ -272,7 +272,6 @@ export class RouteAppStack extends cdk.Stack {
       `),
     });
 
-
     // mutations
     // CLient should pass true or false into sharable
     routesDataSource.createResolver("CreateRouteResolver", {
@@ -302,9 +301,9 @@ export class RouteAppStack extends cdk.Stack {
     });
 
     routesDataSource.createResolver("UpdateRouteResolver", {
-    typeName: "Mutation",
-    fieldName: "updateRoute",
-    requestMappingTemplate: appsync.MappingTemplate.fromString(`
+      typeName: "Mutation",
+      fieldName: "updateRoute",
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
       {
         "version": "2017-02-28",
         "operation": "UpdateItem",
@@ -336,10 +335,10 @@ export class RouteAppStack extends cdk.Stack {
         }
       }
     `),
-    responseMappingTemplate: appsync.MappingTemplate.fromString(`
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
       $util.toJson($ctx.result)
     `),
-  });
+    });
 
     routesDataSource.createResolver("DeleteRouteResolver", {
       typeName: "Mutation",
@@ -363,7 +362,6 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result)
       `),
     });
-
 
     // IAM Role for authenticated users
     const authenticatedRole = new iam.Role(this, "AuthenticatedRole", {
@@ -630,7 +628,38 @@ export class RouteAppStack extends cdk.Stack {
         $util.toJson($ctx.result.items)
       `),
     });
+    const getStartEndPlacesLambda = new NodejsFunction(
+      this,
+      "GetStartEndPlacesLambda",
+      {
+        entry: path.join(__dirname, "../lambda/getStartEndPlaces/index.js"),
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_22_X,
+        environment: {
+          GOOGLE_API_KEY:
+            process.env.GOOGLE_MAPS_API_KEY ||
+            "AIzaSyBZ3bwDQu5yNFh-Wbqes9baKYuwpvK8SVo", // TODO: store in Secrets Manager
+        },
+        bundling: {
+          externalModules: ["aws-sdk"],
+          minify: true,
+          sourceMap: true,
+        },
+      }
+    );
 
+    // AppSync Data Source & Resolver
+    const getStartEndPlacesDS = api.addLambdaDataSource(
+      "GetStartEndPlacesDataSource",
+      getStartEndPlacesLambda
+    );
+
+    getStartEndPlacesDS.createResolver("GetStartEndPlacesResolver", {
+      typeName: "Query",
+      fieldName: "getStartEndPlaces",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
     saveLocationsDS.createResolver("SaveLocationsResolver", {
       typeName: "Mutation",
       fieldName: "saveLocations",
